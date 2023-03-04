@@ -1,0 +1,80 @@
+# Based on https://github.com/jhollowe/docker-net-debug/blob/main/.github/workflows/build-and-push.yaml
+
+name: Build and push images to registries
+
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+*
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  build-and-push:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Parse Repo Name
+        id: repo-name
+        run: |
+          repo=${GITHUB_REPOSITORY#*/}
+          repo_clean=${repo%-docker}
+          org=${GITHUB_REPOSITORY%/*}
+          echo "::set-output name=repo::${repo}"
+          echo "::set-output name=repo_clean::${repo_clean}"
+          echo "::set-output name=org::${org}"
+          printf "::group::Outputs:\nrepo: ${repo}\nrepo_clean: ${repo_clean}\norg: ${org}\n::endgroup::"
+
+      - name: Docker metadata
+        id: docker_meta_default
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/${{ steps.repo-name.outputs.repo_clean }}
+            ghcr.io/${{ steps.repo-name.outputs.org }}/${{ steps.repo-name.outputs.repo_clean }}
+          tags: |
+            type=sha,prefix=
+            type=edge,branch=main
+            type=semver,pattern={{major}}.{{minor}}.{{patch}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=pr
+
+      - name: Login to DockerHub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to Github Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/ppc64le,linux/s390x
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.docker_meta.outputs.tags }}
+            ${{ steps.docker_meta_default.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
