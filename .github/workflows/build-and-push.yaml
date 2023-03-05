@@ -17,9 +17,15 @@ jobs:
     runs-on: "ubuntu-latest"
     env:
       DEFAULT_TYPE: prod
+      # BASE_ARCHES: linux/amd64,linux/arm64,linux/arm/v7,linux/ppc64le,linux/s390x
+      BASE_ARCHES: linux/amd64
     strategy:
       matrix:
         type: [prod, dyn]
+        # the golang image has more supported arches
+        # include:
+        #   - type: dyn
+        #     extra_arch: ",linux/arm/v5,linux/386"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -36,6 +42,7 @@ jobs:
           printf "::group::Outputs:\nrepo: ${repo}\nrepo_clean: ${repo_clean}\norg: ${org}\n::endgroup::"
 
       - name: Docker metadata (type tagged)
+        if: matrix.type != env.DEFAULT_TYPE
         id: docker_meta
         uses: docker/metadata-action@v4
         with:
@@ -51,7 +58,7 @@ jobs:
             type=semver,pattern={{major}}
             type=ref,event=pr
 
-      - name: Docker metadata (Default OS)
+      - name: Docker metadata (Default Type)
         id: docker_meta_default
         if: matrix.type == env.DEFAULT_TYPE
         uses: docker/metadata-action@v4
@@ -87,7 +94,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/ppc64le,linux/s390x
+          platforms: ${BASE_ARCHES}${{ matrix.extra_arch }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.docker_meta.outputs.tags }}
