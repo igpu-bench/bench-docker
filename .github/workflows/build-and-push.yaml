@@ -36,9 +36,9 @@ jobs:
           repo=${GITHUB_REPOSITORY#*/}
           repo_clean=${repo%-docker}
           org=${GITHUB_REPOSITORY%/*}
-          echo "::set-output name=repo::${repo}"
-          echo "::set-output name=repo_clean::${repo_clean}"
-          echo "::set-output name=org::${org}"
+          echo "repo=${repo}" >> $GITHUB_OUTPUT
+          echo "repo_clean=${repo_clean}" >> $GITHUB_OUTPUT
+          echo "org=${org}" >> $GITHUB_OUTPUT
           printf "::group::Outputs:\nrepo: ${repo}\nrepo_clean: ${repo_clean}\norg: ${org}\n::endgroup::"
 
       - name: Docker metadata (type tagged)
@@ -58,7 +58,7 @@ jobs:
             type=semver,pattern={{major}}
             type=ref,event=pr
 
-      - name: Docker metadata (Default Type)
+      - name: Docker metadata (default type)
         id: docker_meta_default
         if: matrix.type == env.DEFAULT_TYPE
         uses: docker/metadata-action@v4
@@ -94,7 +94,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${BASE_ARCHES}${{ matrix.extra_arch }}
+          platforms: ${{ env.BASE_ARCHES }}${{ matrix.extra_arch }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.docker_meta.outputs.tags }}
