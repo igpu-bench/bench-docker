@@ -15,6 +15,11 @@ on:
 jobs:
   build-and-push:
     runs-on: "ubuntu-latest"
+    env:
+      DEFAULT_TYPE: prod
+    strategy:
+      matrix:
+        type: [prod, dyn]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -30,8 +35,25 @@ jobs:
           echo "::set-output name=org::${org}"
           printf "::group::Outputs:\nrepo: ${repo}\nrepo_clean: ${repo_clean}\norg: ${org}\n::endgroup::"
 
-      - name: Docker metadata
+      - name: Docker metadata (type tagged)
+        id: docker_meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ghcr.io/${{ steps.repo-name.outputs.org }}/${{ steps.repo-name.outputs.repo_clean }}
+          flavor: |
+            suffix=-${{ matrix.type }},onlatest=true
+          tags: |
+            type=sha,prefix=
+            type=edge,branch=main
+            type=semver,pattern={{major}}.{{minor}}.{{patch}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=ref,event=pr
+
+      - name: Docker metadata (Default OS)
         id: docker_meta_default
+        if: matrix.type == env.DEFAULT_TYPE
         uses: docker/metadata-action@v4
         with:
           images: |
@@ -43,6 +65,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=ref,event=pr
+
 
       - name: Login to Github Container Registry
         if: github.event_name != 'pull_request'
@@ -70,3 +93,4 @@ jobs:
             ${{ steps.docker_meta.outputs.tags }}
             ${{ steps.docker_meta_default.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
+          target: ${{ matrix.type }}
