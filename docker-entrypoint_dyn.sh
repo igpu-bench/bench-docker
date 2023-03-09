@@ -23,7 +23,16 @@ function checkout_bench_ref() {
   fi
 }
 
-
+function entrypoint_help {
+  echo "Container wrapper help:"
+  echo "  get-bench-version             Shows the currently installed benchmark version and exits"
+  echo "  set-bench-version [version]   Switches to the given version of the benchmark (can be a branch or tag)"
+  echo "  set-bench-latest              Switches to the most up-to-date version of the benchmark"
+  echo "  update                        Same as set-bench-latest"
+  echo "  bash|sh                       Launches an interactive shell"
+  echo "  *                             run all given text as an argument to ibench"
+  printf "\n\n"
+}
 
 case $1 in
 
@@ -47,8 +56,13 @@ case $1 in
     install_bench
   ;;
 
-  bash|sh|shell)
+  bash|sh)
     exec $@
+  ;;
+
+  help|--help)
+    entrypoint_help
+    ibench --help
   ;;
 
   *)
