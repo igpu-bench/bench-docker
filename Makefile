@@ -1,6 +1,8 @@
 
 DOCKER_NAME_BASE=ghcr.io/igpu-bench/igpu-bench
 
+all: build-prod build-dyn
+
 build: build-prod
 
 build-prod:
